@@ -10,6 +10,7 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.api.ACLable;
@@ -58,6 +59,9 @@ public class FlinkApplication01 {
                     Order order = new Order(String.valueOf(id),id++);
                     sourceContext.collect(order);
                     Thread.sleep(100L);
+                    if(id==10){
+                        running = false;
+                    }
                 }
             }
 
@@ -67,7 +71,13 @@ public class FlinkApplication01 {
             }
         });
 
-        dataStreamSource1.map(order -> Tuple2.of(order.getId(),order.getAmount())).returns(Types.TUPLE(Types.STRING,Types.INT)).print();
+        dataStreamSource1.map(order -> Tuple3.of(order.getId(),order.getAmount(),1)).returns(Types.TUPLE(Types.STRING,Types.INT,Types.INT))
+                .keyBy(t->true).reduce(new ReduceFunction<Tuple3<String, Integer, Integer>>() {
+                    @Override
+                    public Tuple3<String, Integer, Integer> reduce(Tuple3<String, Integer, Integer> t1, Tuple3<String, Integer, Integer> t2) throws Exception {
+                        return Tuple3.of("total",t1.f1+t2.f1,t1.f2+t2.f2);
+                    }
+                }).print();
 
 
 
